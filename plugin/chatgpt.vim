@@ -56,28 +56,28 @@ function! DisplayChatGPTResponse(response, finish_reason, chat_gpt_session_id)
 
   let chat_gpt_session_id = a:chat_gpt_session_id
 
-  if !bufexists(chat_gpt_session_id)
-    if g:chat_gpt_split_direction ==# 'vertical'
-      silent execute 'vnew '. chat_gpt_session_id
-    else
-      silent execute 'new '. chat_gpt_session_id
-    endif
-    call setbufvar(chat_gpt_session_id, '&buftype', 'nofile')
-    call setbufvar(chat_gpt_session_id, '&bufhidden', 'hide')
-    call setbufvar(chat_gpt_session_id, '&swapfile', 0)
-    setlocal modifiable
-    setlocal wrap
-    call setbufvar(chat_gpt_session_id, '&ft', 'markdown')
-    call setbufvar(chat_gpt_session_id, '&syntax', 'markdown')
-  endif
-
-  if bufwinnr(chat_gpt_session_id) == -1
-    if g:chat_gpt_split_direction ==# 'vertical'
-      execute 'vsplit ' . chat_gpt_session_id
-    else
-      execute 'split ' . chat_gpt_session_id
-    endif
-  endif
+  " if !bufexists(chat_gpt_session_id)
+  "   if g:chat_gpt_split_direction ==# 'vertical'
+  "     silent execute 'vnew '. chat_gpt_session_id
+  "   else
+  "     silent execute 'new '. chat_gpt_session_id
+  "   endif
+  "   call setbufvar(chat_gpt_session_id, '&buftype', 'nofile')
+  "   call setbufvar(chat_gpt_session_id, '&bufhidden', 'hide')
+  "   call setbufvar(chat_gpt_session_id, '&swapfile', 0)
+  "   setlocal modifiable
+  "   setlocal wrap
+  "   call setbufvar(chat_gpt_session_id, '&ft', 'markdown')
+  "   call setbufvar(chat_gpt_session_id, '&syntax', 'markdown')
+  " endif
+		" 
+  " if bufwinnr(chat_gpt_session_id) == -1
+  "   if g:chat_gpt_split_direction ==# 'vertical'
+  "     execute 'vsplit ' . chat_gpt_session_id
+  "   else
+  "     execute 'split ' . chat_gpt_session_id
+  "   endif
+  " endif
 
   let last_lines = getbufline(chat_gpt_session_id, '$')
   let last_line = empty(last_lines) ? '' : last_lines[-1]
@@ -87,11 +87,23 @@ function! DisplayChatGPTResponse(response, finish_reason, chat_gpt_session_id)
 
   let clean_lines = []
   for line in lines
-    call add(clean_lines, substitute(line, '\r', '', 'g'))
+    call add(clean_lines, line)
+    " call add(clean_lines, substitute(line, '\r', '', 'g'))
+    " if empty(clean_lines)
+    "   return
+    " endif
+    " execute "normal A" . clean_lines[0]
+
   endfor
 
-  call setbufline(chat_gpt_session_id, '$', clean_lines)
-  call cursor('$', 1)
+  " call setbufline(chat_gpt_session_id, '$', clean_lines)
+  " call cursor('$', 1)
+
+  if empty(clean_lines)
+    execute "normal A" . "\r"
+    return
+  endif
+  execute "normal A" . clean_lines[0]
 
   if finish_reason != ''
     wincmd p
@@ -99,17 +111,21 @@ function! DisplayChatGPTResponse(response, finish_reason, chat_gpt_session_id)
 endfunction
 
 " Function to interact with ChatGPT
-function! ChatGPT(prompt) abort
+function! ChatGPT(prompt, is_programmer) abort
   python3 << EOF
 
-def chat_gpt(prompt):
+def chat_gpt(prompt, is_programmer):
   max_tokens = int(vim.eval('g:chat_gpt_max_tokens'))
   model = str(vim.eval('g:chat_gpt_model'))
   temperature = float(vim.eval('g:chat_gpt_temperature'))
   lang = str(vim.eval('g:chat_gpt_lang'))
   resp = lang and f" And respond in {lang}." or ""
 
-  systemCtx = {"role": "system", "content": f"You are a helpful expert programmer we are working together to solve complex coding challenges, and I need your help. Please make sure to wrap all code blocks in ``` annotate the programming language you are using. {resp}"}
+  systemCtx = ''
+  if is_programmer == True:
+    systemCtx = {"role": "system", "content": f"You are a helpful expert programmer we are working together to solve complex coding challenges, and I need your help. Please make sure to wrap all code blocks in ``` annotate the programming language you are using. {resp}"}
+  else:
+    systemCtx = {"role": "system", "content": f""}
   messages = []
   session_id = 'gpt-persistent-session' if int(vim.eval('exists("g:chat_gpt_session_mode") && g:chat_gpt_session_mode')) else None
 
@@ -144,7 +160,8 @@ def chat_gpt(prompt):
             })
 
   if session_id:
-    content = '\n\n>>>User:\n' + prompt + '\n\n>>>Assistant:\n'.replace("'", "''")
+    # content = '\n\n>>>User:\n' + prompt + '\n\n>>>Assistant:\n'.replace("'", "''")
+    content = ''
 
     vim.command("call DisplayChatGPTResponse('{0}', '', '{1}')".format(content.replace("'", "''"), session_id))
     vim.command("redraw")
@@ -180,7 +197,7 @@ def chat_gpt(prompt):
   except Exception as e:
     print("Error:", str(e))
 
-chat_gpt(vim.eval('a:prompt'))
+chat_gpt(vim.eval('a:prompt'), vim.eval('a:is_programmer'))
 EOF
 endfunction
 
@@ -260,8 +277,37 @@ function! GenerateCommitMessage()
   let yanked_text = @@
   let prompt = 'I have the following code changes, can you write a helpful commit message, including a short title?' . "\n" .  yanked_text
 
-  call ChatGPT(prompt)
+  call ChatGPT(prompt, v:true)
 endfunction
+
+" Function to generate a commit message
+function! GenerateCompletiton(ask)
+  let select_text = s:get_visual_text()
+  let prompt = len(select_text) == 0 ? a:ask : select_text . a:ask 
+  call ChatGPT(prompt, v:false)
+endfunction
+
+function! s:get_visual_text()
+  try
+    let pos = getpos('')
+    normal `<
+    let start_line = line('.')
+    let start_col = col('.')
+    normal `>
+    let end_line = line('.')
+    let end_col = col('.')
+    call setpos('.', pos)
+
+    let tmp = @@
+    silent normal gvy
+    let selected = @@
+    let @@ = tmp
+    return selected
+  catch
+    return ''
+  endtry
+endfunction
+
 
 " Menu for ChatGPT
 function! s:ChatGPTMenuSink(id, choice)
@@ -311,3 +357,4 @@ command! -range -nargs=? Test call SendHighlightedCodeToChatGPT('test',<q-args>)
 command! -range -nargs=? Fix call SendHighlightedCodeToChatGPT('fix', <q-args>)
 
 command! GenerateCommit call GenerateCommitMessage()
+command! -range -nargs=? Completeion call GenerateCompletiton(<q-args>)
