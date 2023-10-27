@@ -251,7 +251,7 @@ function! SendHighlightedCodeToChatGPT(ask, context)
     endif
   endif
 
-  call ChatGPT(prompt)
+  call ChatGPT(prompt, v:true)
 
   " Restore the original yank register
   let @@ = save_reg
@@ -345,7 +345,7 @@ function! ChatGPTMenu() range
 endfunction
 
 " Expose mappings
-vnoremap <silent> <Plug>(chatgpt-menu) :call ChatGPTMenu()<CR>
+" vnoremap <silent> <Plug>(chatgpt-menu) :call ChatGPTMenu()<CR>
 
 " Commands to interact with ChatGPT
 command! -range -nargs=? Ask call SendHighlightedCodeToChatGPT('Ask',<q-args>)
@@ -353,8 +353,7 @@ command! -range -nargs=? Explain call SendHighlightedCodeToChatGPT('explain', <q
 command! -range Review call SendHighlightedCodeToChatGPT('review', '')
 command! -range -nargs=? Document call SendHighlightedCodeToChatGPT('document', <q-args>)
 command! -range -nargs=? Rewrite call SendHighlightedCodeToChatGPT('rewrite', <q-args>)
-command! -range -nargs=? Test call SendHighlightedCodeToChatGPT('test',<q-args>)
+command! -range -nargs=? UnitTest call SendHighlightedCodeToChatGPT('test',<q-args>)
 command! -range -nargs=? Fix call SendHighlightedCodeToChatGPT('fix', <q-args>)
-
 command! GenerateCommit call GenerateCommitMessage()
 command! -range -nargs=? Completeion call GenerateCompletiton(<q-args>)
