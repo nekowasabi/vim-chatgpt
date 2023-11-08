@@ -283,6 +283,12 @@ endfunction
 " Function to generate a commit message
 function! GenerateCompletiton(ask)
   let select_text = s:get_visual_text()
+  " 'a' と 'b' はビジュアルモードで選択された範囲のマークです
+  let start = getpos("'<")
+  let end = getpos("'>")
+
+  " 選択範囲の行を削除します
+  execute start[1] . "," . end[1] . "d"
   let prompt = len(select_text) == 0 ? a:ask : select_text . a:ask 
   call ChatGPT(prompt, v:false)
 endfunction
