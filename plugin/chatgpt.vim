@@ -283,12 +283,19 @@ endfunction
 " Function to generate a commit message
 function! GenerateCompletiton(ask)
   let select_text = s:get_visual_text()
-  " 'a' と 'b' はビジュアルモードで選択された範囲のマークです
+  let prompt = len(select_text) == 0 ? a:ask : select_text . a:ask 
+  call ChatGPT(prompt, v:false)
+endfunction
+
+" Function to generate a commit message
+function! GenerateEdit(ask)
+  let select_text = s:get_visual_text()
+
+	" delete visual selected
   let start = getpos("'<")
   let end = getpos("'>")
-
-  " 選択範囲の行を削除します
   execute start[1] . "," . end[1] . "d"
+
   let prompt = len(select_text) == 0 ? a:ask : select_text . a:ask 
   call ChatGPT(prompt, v:false)
 endfunction
@@ -363,3 +370,4 @@ command! -range -nargs=? UnitTest call SendHighlightedCodeToChatGPT('test',<q-ar
 command! -range -nargs=? Fix call SendHighlightedCodeToChatGPT('fix', <q-args>)
 command! GenerateCommit call GenerateCommitMessage()
 command! -range -nargs=? Completeion call GenerateCompletiton(<q-args>)
+command! -range -nargs=? Edit call GenerateEdit(<q-args>)
